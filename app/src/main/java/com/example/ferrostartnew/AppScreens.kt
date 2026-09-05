@@ -675,30 +675,14 @@ fun RouteListScreen(
                           }
                         } else {
                           Column(modifier = Modifier.padding(top = 8.dp)) {
-                            // Show the STOPS (named waypoints + ends), not the
-                            // dozens of unnamed shape points an auto-route
-                            // carries. Full list only when nothing is named.
-                            val stops =
-                                detail.waypoints.mapIndexedNotNull { i, wp ->
-                                  val isEnd = i == 0 || i == detail.waypoints.lastIndex
-                                  if (isEnd || wp.name.isNotBlank()) Pair(i, wp) else null
-                                }
-                            val display =
-                                if (stops.size >= 3) stops
-                                else detail.waypoints.mapIndexed { i, wp -> Pair(i, wp) }
-                            val hidden = detail.waypoints.size - display.size
+                            // Every waypoint, in order - the boater starts
+                            // from whichever point they're actually at.
+                            val display = detail.waypoints.mapIndexed { i, wp -> Pair(i, wp) }
                             Text(
-                                "Start navigation from any stop:",
+                                "Start navigation from any waypoint:",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (hidden > 0) {
-                              Text(
-                                  "$hidden route shape points hidden - showing your stops",
-                                  style = MaterialTheme.typography.labelSmall,
-                                  color = MaterialTheme.colorScheme.onSurfaceVariant,
-                              )
-                            }
                             display.forEach { (i, wp) ->
                               val isLast = i == detail.waypoints.lastIndex
                               Row(
