@@ -159,19 +159,22 @@ fun AppRoot(viewModel: PocNavigationViewModel = NavModule.viewModel) {
 @Composable
 private fun BrandMark() {
   Row(verticalAlignment = Alignment.CenterVertically) {
-    // Exactly the launcher artwork: same anchor vector on the brand blue, so
-    // the login logo and the home-screen icon always match.
+    // The real launcher icon, both layers (wave background + anchor), scaled
+    // 1.5x to mimic the adaptive-icon safe-zone crop - so this box looks
+    // exactly like the icon on the home screen.
     Box(
-        modifier =
-            Modifier.size(56.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.primary),
+        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)),
         contentAlignment = Alignment.Center,
     ) {
       Image(
+          painter = painterResource(R.drawable.ic_launcher_background),
+          contentDescription = null,
+          modifier = Modifier.size(56.dp).scale(1.5f),
+      )
+      Image(
           painter = painterResource(R.drawable.ic_launcher_foreground),
           contentDescription = "Marine OS",
-          modifier = Modifier.size(56.dp).scale(1.8f),
+          modifier = Modifier.size(56.dp).scale(1.5f),
       )
     }
     Spacer(Modifier.width(12.dp))
