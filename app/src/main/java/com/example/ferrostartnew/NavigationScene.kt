@@ -17,12 +17,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Canvas
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,6 +54,32 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.maplibre.compose.style.BaseStyle
 import uniffi.ferrostar.GeographicCoordinate
+
+/** Lifebuoy glyph for the MOB button: white ring with four spokes. */
+@Composable
+private fun LifebuoyIcon(sizeDp: androidx.compose.ui.unit.Dp, color: Color) {
+  Canvas(modifier = Modifier.size(sizeDp)) {
+    val r = size.minDimension / 2f
+    val stroke = r * 0.42f
+    // Ring
+    drawCircle(color = color, radius = r * 0.66f, style = Stroke(width = stroke))
+    // Spokes at 45/135/225/315 degrees
+    for (angleDeg in listOf(45.0, 135.0, 225.0, 315.0)) {
+      val a = Math.toRadians(angleDeg)
+      val from =
+          Offset(
+              center.x + (r * 0.40f * kotlin.math.cos(a)).toFloat(),
+              center.y + (r * 0.40f * kotlin.math.sin(a)).toFloat(),
+          )
+      val to =
+          Offset(
+              center.x + (r * 0.95f * kotlin.math.cos(a)).toFloat(),
+              center.y + (r * 0.95f * kotlin.math.sin(a)).toFloat(),
+          )
+      drawLine(color = color, start = from, end = to, strokeWidth = stroke * 0.5f)
+    }
+  }
+}
 
 /**
  * Full-screen navigation scene with marine extras:
@@ -203,9 +235,10 @@ fun NavigationScene(
           },
           colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
           shape = CircleShape,
+          contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
           modifier = Modifier.size(64.dp),
       ) {
-        Text("MOB", color = Color.White, fontWeight = FontWeight.Bold)
+        LifebuoyIcon(sizeDp = 34.dp, color = Color.White)
       }
       if (routeId != null && MarineApi.hasToken()) {
         Spacer(Modifier.height(10.dp))
@@ -235,9 +268,15 @@ fun NavigationScene(
                         if (sharing) MaterialTheme.colorScheme.tertiary
                         else MaterialTheme.colorScheme.primary),
             shape = CircleShape,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
             modifier = Modifier.size(64.dp),
         ) {
-          Text(if (sharing) "LIVE" else "Share", color = Color.White, style = MaterialTheme.typography.labelMedium)
+          Icon(
+              Icons.Filled.Share,
+              contentDescription = if (sharing) "Sharing live" else "Share trip",
+              tint = Color.White,
+              modifier = Modifier.size(28.dp),
+          )
         }
       }
     }

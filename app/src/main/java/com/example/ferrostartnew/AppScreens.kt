@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,7 +47,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -152,13 +156,20 @@ fun AppRoot(viewModel: PocNavigationViewModel = NavModule.viewModel) {
 @Composable
 private fun BrandMark() {
   Row(verticalAlignment = Alignment.CenterVertically) {
+    // Exactly the launcher artwork: same anchor vector on the brand blue, so
+    // the login logo and the home-screen icon always match.
     Box(
         modifier =
-            Modifier.size(44.dp)
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
+            Modifier.size(56.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center,
     ) {
-      Text("⚓", fontSize = 22.sp)
+      Image(
+          painter = painterResource(R.drawable.ic_launcher_foreground),
+          contentDescription = "Marine OS",
+          modifier = Modifier.size(56.dp).scale(1.8f),
+      )
     }
     Spacer(Modifier.width(12.dp))
     Column {
