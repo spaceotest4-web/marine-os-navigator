@@ -333,7 +333,8 @@ fun RouteListScreen(
   var routes by remember { mutableStateOf<List<MarineApi.RouteSummary>?>(null) }
   var error by remember { mutableStateOf<String?>(null) }
   var loadingRouteId by remember { mutableStateOf<String?>(null) }
-  var simulate by remember { mutableStateOf(true) }
+  // Real GPS by default - the demo simulator is opt-in for testing ashore.
+  var simulate by remember { mutableStateOf(false) }
   var expandedRouteId by remember { mutableStateOf<String?>(null) }
   var detailCache by remember { mutableStateOf(mapOf<String, MarineApi.RouteDetail>()) }
   val scope = rememberCoroutineScope()

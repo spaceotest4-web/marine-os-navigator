@@ -137,10 +137,7 @@ fun NavigationScene(
           viewModel.stopNavigation()
           onExit?.invoke()
         },
-        onMapLongClick = { position, _ ->
-          viewModel.startNavigationTo(GeographicCoordinate(position.lat, position.lng))
-          NavigationMapClickResult.Consume
-        },
+        onMapLongClick = { _, _ -> NavigationMapClickResult.Pass },
     )
 
     // MOB banner: live distance and bearing back to the pinned point.

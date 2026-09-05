@@ -67,8 +67,8 @@ fun WeatherScreen() {
         val loc =
             withTimeoutOrNull(15_000) { provider.locationUpdates(2000L).first() }
                 ?: throw MarineApi.ApiException("No GPS fix yet - step outside and try again.")
-        val lat = loc.coordinates.lat
-        val lng = loc.coordinates.lng
+        val lat = loc.latitude
+        val lng = loc.longitude
         place = String.format("%.3f, %.3f", lat, lng)
 
         val wind =

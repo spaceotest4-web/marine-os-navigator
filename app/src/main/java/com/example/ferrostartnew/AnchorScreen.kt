@@ -78,8 +78,8 @@ fun AnchorScreen() {
     withContext(Dispatchers.IO) {
       val provider = FusedNavigationLocationProvider(context)
       provider.locationUpdates(5000L).collectLatest { loc ->
-        val lat = loc.coordinates.lat
-        val lng = loc.coordinates.lng
+        val lat = loc.latitude
+        val lng = loc.longitude
         current = Pair(lat, lng)
         val a = anchor ?: return@collectLatest
         val dist = GeoUtils.haversineMeters(a.first, a.second, lat, lng)
