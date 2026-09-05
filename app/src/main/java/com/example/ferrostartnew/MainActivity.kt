@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity(), AndroidTtsStatusListener {
       window.isNavigationBarContrastEnforced = false
     }
 
-    setContent { MaterialTheme { Surface { AppRoot() } } }
+    setContent { MarineTheme { Surface { AppRoot() } } }
   }
 
   override fun onStart() {

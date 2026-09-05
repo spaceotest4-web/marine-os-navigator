@@ -52,9 +52,24 @@ object MarineApi {
         .apply()
   }
 
+  // Generous timeouts: the backend is serverless, and a cold start (first
+  // request in a while) can take 10s+ before it even runs.
   private val client: OkHttpClient by lazy {
-    OkHttpClient.Builder().callTimeout(Duration.ofSeconds(20)).build()
+    OkHttpClient.Builder()
+        .connectTimeout(Duration.ofSeconds(15))
+        .readTimeout(Duration.ofSeconds(25))
+        .callTimeout(Duration.ofSeconds(40))
+        .build()
   }
+
+  // One silent retry on timeout: a cold serverless start regularly times the
+  // first request out and succeeds instantly on the second.
+  private fun executeWithRetry(request: okhttp3.Request): okhttp3.Response =
+      try {
+        client.newCall(request).execute()
+      } catch (e: java.io.InterruptedIOException) {
+        client.newCall(request).execute()
+      }
 
   private val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
@@ -110,7 +125,13 @@ object MarineApi {
             .url("$baseUrl/api/app/login")
             .post(payload.toRequestBody(jsonMedia))
             .build()
-    client.newCall(request).execute().use { res ->
+    val response =
+        try {
+          executeWithRetry(request)
+        } catch (e: java.io.InterruptedIOException) {
+          throw ApiException("The server took too long to wake up - please try once more.")
+        }
+    response.use { res ->
       val body = res.body.string()
       if (!res.isSuccessful) throw ApiException(errorMessage(body, "Login failed"))
       val json = JSONObject(body)
@@ -131,7 +152,13 @@ object MarineApi {
     val token = prefs.getString(KEY_TOKEN, null) ?: throw ApiException("Not signed in")
     val request =
         Request.Builder().url("$baseUrl$path").header("Authorization", "Bearer $token").build()
-    client.newCall(request).execute().use { res ->
+    val response =
+        try {
+          executeWithRetry(request)
+        } catch (e: java.io.InterruptedIOException) {
+          throw ApiException("The server took too long to respond - pull to try again.")
+        }
+    response.use { res ->
       val body = res.body.string()
       if (res.code == 401) {
         logout()
