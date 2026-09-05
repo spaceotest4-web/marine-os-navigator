@@ -78,7 +78,7 @@ object NavModule {
   }
 
   val ferrostarCore: FerrostarCore by lazy {
-    // Routing: GraphHopper (existing Upper subscription) when its key is set,
+    // Routing: GraphHopper when its key is set,
     // otherwise fall back to Stadia Maps (Valhalla).
     val (routeProvider, options) =
         if (graphhopperApiKey.isNotBlank()) {
