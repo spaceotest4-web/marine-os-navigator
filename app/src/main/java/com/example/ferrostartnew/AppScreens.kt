@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -82,6 +83,14 @@ fun AppRoot(viewModel: PocNavigationViewModel = NavModule.viewModel) {
   // Pull the central web config once at startup (API base, update info,
   // notices). Best-effort: failures keep the cached/default values.
   LaunchedEffect(Unit) { withContext(Dispatchers.IO) { AppConfig.refresh() } }
+
+  // System back: during navigation it returns to the route list (stopping
+  // guidance) instead of closing the app. On the routes/login screens the
+  // default behavior (exit) is correct.
+  BackHandler(enabled = screen == AppScreen.Navigating) {
+    viewModel.stopNavigation()
+    screen = AppScreen.Routes
+  }
 
   // Ask for location (and the notification/foreground permissions newer
   // Android needs) up front, so navigation's foreground service can start
