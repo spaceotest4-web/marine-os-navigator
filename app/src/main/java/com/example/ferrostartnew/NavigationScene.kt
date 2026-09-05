@@ -23,7 +23,10 @@ import uniffi.ferrostar.GeographicCoordinate
  * route from the current location and start turn-by-turn navigation (with voice).
  */
 @Composable
-fun NavigationScene(viewModel: PocNavigationViewModel = NavModule.viewModel) {
+fun NavigationScene(
+    viewModel: PocNavigationViewModel = NavModule.viewModel,
+    onExit: (() -> Unit)? = null,
+) {
   KeepScreenOnDisposableEffect()
 
   val context = LocalContext.current
@@ -67,7 +70,10 @@ fun NavigationScene(viewModel: PocNavigationViewModel = NavModule.viewModel) {
       baseStyle = BaseStyle.Uri(NavModule.mapStyleUrl),
       navigationMapState = rememberNavigationMapState(),
       viewModel = viewModel,
-      onTapExit = { viewModel.stopNavigation() },
+      onTapExit = {
+        viewModel.stopNavigation()
+        onExit?.invoke()
+      },
       onMapLongClick = { position, _ ->
         viewModel.startNavigationTo(GeographicCoordinate(position.lat, position.lng))
         NavigationMapClickResult.Consume

@@ -75,6 +75,31 @@ class PocNavigationViewModel(
     _hasLocationPermission.value = permitted
   }
 
+  /**
+   * Navigate a pre-built route (Marine OS saved route) - no routing API call.
+   * With [simulate] on, the puck runs the route automatically (demo mode);
+   * off, the device GPS drives it.
+   */
+  fun startNavigationRoute(route: uniffi.ferrostar.Route, simulate: Boolean) {
+    _simulated.value = simulate
+    viewModelScope.launch(Dispatchers.IO) {
+      try {
+        if (simulate) {
+          locationProvider.enableSimulationOn(route)
+        } else {
+          locationProvider.disableSimulation()
+        }
+        if (navigationUiState.value.isNavigating()) {
+          ferrostarCore.replaceRoute(route = route)
+        } else {
+          ferrostarCore.startNavigation(route = route)
+        }
+      } catch (t: Throwable) {
+        Log.e(TAG, "Failed to start marine route: $t")
+      }
+    }
+  }
+
   fun startNavigationTo(destination: GeographicCoordinate) {
     viewModelScope.launch(Dispatchers.IO) {
       val lastLocation = location.value ?: return@launch

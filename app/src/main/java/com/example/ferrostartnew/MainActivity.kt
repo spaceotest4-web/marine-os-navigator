@@ -23,6 +23,7 @@ class MainActivity : ComponentActivity(), AndroidTtsStatusListener {
     super.onCreate(savedInstanceState)
 
     NavModule.init(applicationContext)
+    MarineApi.init(applicationContext)
 
     // Voice guidance: route spoken instructions from the core to Android TTS.
     NavModule.ttsObserver.statusObserver = this
@@ -35,7 +36,7 @@ class MainActivity : ComponentActivity(), AndroidTtsStatusListener {
       window.isNavigationBarContrastEnforced = false
     }
 
-    setContent { MaterialTheme { Surface { NavigationScene() } } }
+    setContent { MaterialTheme { Surface { AppRoot() } } }
   }
 
   override fun onStart() {
