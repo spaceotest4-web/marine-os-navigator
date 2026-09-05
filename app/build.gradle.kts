@@ -26,6 +26,11 @@ android {
         versionCode = 2
         versionName = "1.1"
 
+        // Real phones are arm64; shipping only that ABI roughly halves the
+        // APK (Ferrostar + MapLibre native libs otherwise come in 4 flavors).
+        // Note: x86 emulators can't run this build - use a real device.
+        ndk { abiFilters.add("arm64-v8a") }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField(
