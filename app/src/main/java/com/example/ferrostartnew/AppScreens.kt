@@ -322,9 +322,61 @@ fun RouteListScreen(
   var error by remember { mutableStateOf<String?>(null) }
   var loadingRouteId by remember { mutableStateOf<String?>(null) }
   var simulate by remember { mutableStateOf(true) }
+  var expandedRouteId by remember { mutableStateOf<String?>(null) }
+  var detailCache by remember { mutableStateOf(mapOf<String, MarineApi.RouteDetail>()) }
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
   val config = AppConfig.cached()
+
+  // Start navigation at a chosen waypoint: legs before it are dropped, so
+  // guidance begins "head to waypoint N+1" instead of pointing back to the
+  // start of the route.
+  fun startNav(routeId: String, fromIndex: Int) {
+    if (loadingRouteId != null) return
+    loadingRouteId = routeId
+    error = null
+    scope.launch {
+      try {
+        val detail =
+            detailCache[routeId]
+                ?: withContext(Dispatchers.IO) { MarineApi.getRoute(routeId) }.also {
+                  detailCache = detailCache + (routeId to it)
+                }
+        val remaining = detail.waypoints.drop(fromIndex)
+        if (remaining.size < 2) {
+          error = "Pick an earlier waypoint - at least two are needed to navigate."
+          return@launch
+        }
+        onStartNavigation(
+            MarineRouteBuilder.build(detail.copy(waypoints = remaining)),
+            simulate,
+        )
+      } catch (e: Exception) {
+        error = e.message ?: "Could not load the route"
+      } finally {
+        loadingRouteId = null
+      }
+    }
+  }
+
+  fun toggleWaypoints(routeId: String) {
+    if (expandedRouteId == routeId) {
+      expandedRouteId = null
+      return
+    }
+    expandedRouteId = routeId
+    if (detailCache[routeId] == null) {
+      scope.launch {
+        try {
+          val detail = withContext(Dispatchers.IO) { MarineApi.getRoute(routeId) }
+          detailCache = detailCache + (routeId to detail)
+        } catch (e: Exception) {
+          error = e.message ?: "Could not load waypoints"
+          expandedRouteId = null
+        }
+      }
+    }
+  }
 
   LaunchedEffect(Unit) {
     try {
@@ -547,40 +599,103 @@ fun RouteListScreen(
                         StatPill("${r.speedKnots} kn")
                       }
                       Spacer(Modifier.height(12.dp))
-                      Button(
-                          onClick = {
-                            if (loadingRouteId != null) return@Button
-                            loadingRouteId = r.id
-                            error = null
-                            scope.launch {
-                              try {
-                                val detail =
-                                    withContext(Dispatchers.IO) { MarineApi.getRoute(r.id) }
-                                onStartNavigation(MarineRouteBuilder.build(detail), simulate)
-                              } catch (e: Exception) {
-                                error = e.message ?: "Could not load the route"
-                              } finally {
-                                loadingRouteId = null
+                      Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { startNav(r.id, 0) },
+                            enabled = loadingRouteId == null && r.waypointCount >= 2,
+                            shape = RoundedCornerShape(12.dp),
+                            colors =
+                                ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.weight(1f).height(46.dp),
+                        ) {
+                          if (loadingRouteId == r.id) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text("Starting…")
+                          } else {
+                            Text("Navigate", fontWeight = FontWeight.SemiBold)
+                          }
+                        }
+                        TextButton(
+                            onClick = { toggleWaypoints(r.id) },
+                            modifier = Modifier.height(46.dp),
+                        ) {
+                          Text(if (expandedRouteId == r.id) "Hide" else "Waypoints")
+                        }
+                      }
+
+                      // Expanded: every waypoint with "Start here", so a boater
+                      // already mid-route can navigate 5 -> 6 -> 7 instead of
+                      // being pointed back to the start.
+                      if (expandedRouteId == r.id) {
+                        val detail = detailCache[r.id]
+                        if (detail == null) {
+                          Row(
+                              verticalAlignment = Alignment.CenterVertically,
+                              modifier = Modifier.padding(top = 10.dp),
+                          ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Loading waypoints…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                          }
+                        } else {
+                          Column(modifier = Modifier.padding(top = 8.dp)) {
+                            Text(
+                                "Start navigation from any waypoint:",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            detail.waypoints.forEachIndexed { i, wp ->
+                              val isLast = i == detail.waypoints.lastIndex
+                              Row(
+                                  verticalAlignment = Alignment.CenterVertically,
+                                  modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                              ) {
+                                Box(
+                                    modifier =
+                                        Modifier.size(22.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant,
+                                                CircleShape,
+                                            ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                  Text(
+                                      "${i + 1}",
+                                      style = MaterialTheme.typography.labelSmall,
+                                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                  )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    wp.name.ifBlank { "Waypoint ${i + 1}" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (!isLast) {
+                                  TextButton(
+                                      onClick = { startNav(r.id, i) },
+                                      enabled = loadingRouteId == null,
+                                  ) {
+                                    Text(
+                                        if (i == 0) "Start" else "Start here",
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                  }
+                                }
                               }
                             }
-                          },
-                          enabled = loadingRouteId == null && r.waypointCount >= 2,
-                          shape = RoundedCornerShape(12.dp),
-                          colors =
-                              ButtonDefaults.buttonColors(
-                                  containerColor = MaterialTheme.colorScheme.primary),
-                          modifier = Modifier.fillMaxWidth().height(46.dp),
-                      ) {
-                        if (loadingRouteId == r.id) {
-                          CircularProgressIndicator(
-                              modifier = Modifier.size(18.dp),
-                              color = MaterialTheme.colorScheme.onPrimary,
-                              strokeWidth = 2.dp,
-                          )
-                          Spacer(Modifier.width(10.dp))
-                          Text("Starting…")
-                        } else {
-                          Text("Navigate", fontWeight = FontWeight.SemiBold)
+                          }
                         }
                       }
                     }
