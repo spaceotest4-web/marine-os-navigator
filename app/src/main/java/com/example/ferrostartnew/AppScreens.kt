@@ -18,7 +18,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -347,6 +350,7 @@ fun RouteListScreen(
   // Real GPS by default - the demo simulator is opt-in for testing ashore.
   var simulate by remember { mutableStateOf(false) }
   var detailFor by remember { mutableStateOf<MarineApi.RouteSummary?>(null) }
+  var expandedRouteId by remember { mutableStateOf<String?>(null) }
   var detailCache by remember { mutableStateOf(mapOf<String, MarineApi.RouteDetail>()) }
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
@@ -384,19 +388,30 @@ fun RouteListScreen(
     }
   }
 
-  fun openDetail(r: MarineApi.RouteSummary) {
-    detailFor = r
-    if (detailCache[r.id] == null) {
-      scope.launch {
-        try {
-          val detail = withContext(Dispatchers.IO) { MarineApi.getRoute(r.id) }
-          detailCache = detailCache + (r.id to detail)
-        } catch (e: Exception) {
-          error = e.message ?: "Could not load the route"
-          detailFor = null
-        }
+  fun fetchDetail(routeId: String) {
+    if (detailCache[routeId] != null) return
+    scope.launch {
+      try {
+        val detail = withContext(Dispatchers.IO) { MarineApi.getRoute(routeId) }
+        detailCache = detailCache + (routeId to detail)
+      } catch (e: Exception) {
+        error = e.message ?: "Could not load waypoints"
       }
     }
+  }
+
+  fun openDetail(r: MarineApi.RouteSummary) {
+    detailFor = r
+    fetchDetail(r.id)
+  }
+
+  fun toggleWaypoints(routeId: String) {
+    if (expandedRouteId == routeId) {
+      expandedRouteId = null
+      return
+    }
+    expandedRouteId = routeId
+    fetchDetail(routeId)
   }
 
   // Detail view replaces the list while open (back returns to the list).
@@ -659,10 +674,85 @@ fun RouteListScreen(
                           }
                         }
                         TextButton(
+                            onClick = { toggleWaypoints(r.id) },
+                            modifier = Modifier.height(46.dp),
+                        ) {
+                          Text(if (expandedRouteId == r.id) "Hide" else "Waypoints")
+                        }
+                        TextButton(
                             onClick = { openDetail(r) },
                             modifier = Modifier.height(46.dp),
                         ) {
                           Text("Details")
+                        }
+                      }
+
+                      // Quick dropdown: start from any waypoint right here.
+                      // Shows about 4 rows; longer lists scroll inside.
+                      if (expandedRouteId == r.id) {
+                        val detail = detailCache[r.id]
+                        if (detail == null) {
+                          Row(
+                              verticalAlignment = Alignment.CenterVertically,
+                              modifier = Modifier.padding(top = 8.dp),
+                          ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Loading waypoints…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                          }
+                        } else {
+                          Column(
+                              modifier =
+                                  Modifier.padding(top = 8.dp)
+                                      .heightIn(max = 168.dp)
+                                      .verticalScroll(rememberScrollState()),
+                          ) {
+                            detail.waypoints.forEachIndexed { i, wp ->
+                              val isLast = i == detail.waypoints.lastIndex
+                              Row(
+                                  verticalAlignment = Alignment.CenterVertically,
+                                  modifier = Modifier.fillMaxWidth(),
+                              ) {
+                                Box(
+                                    modifier =
+                                        Modifier.size(22.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant,
+                                                CircleShape,
+                                            ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                  Text(
+                                      "${i + 1}",
+                                      style = MaterialTheme.typography.labelSmall,
+                                      color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                  )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    wp.name.ifBlank { "Waypoint ${i + 1}" },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (!isLast) {
+                                  TextButton(
+                                      onClick = { startNav(r.id, i) },
+                                      enabled = loadingRouteId == null,
+                                  ) {
+                                    Text(
+                                        if (i == 0) "Start" else "Start here",
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                  }
+                                }
+                              }
+                            }
+                          }
                         }
                       }
                     }
