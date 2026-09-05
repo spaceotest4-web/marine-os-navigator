@@ -18,11 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -78,6 +75,24 @@ private fun LifebuoyIcon(sizeDp: androidx.compose.ui.unit.Dp, color: Color) {
           )
       drawLine(color = color, start = from, end = to, strokeWidth = stroke * 0.5f)
     }
+  }
+}
+
+/** Share glyph: three nodes joined by two lines (drawn, no icon library). */
+@Composable
+private fun ShareIcon(sizeDp: androidx.compose.ui.unit.Dp, color: Color) {
+  Canvas(modifier = Modifier.size(sizeDp)) {
+    val w = size.width
+    val h = size.height
+    val r = w * 0.13f
+    val right = Offset(w * 0.74f, h * 0.20f)
+    val left = Offset(w * 0.26f, h * 0.50f)
+    val bottom = Offset(w * 0.74f, h * 0.80f)
+    drawLine(color, left, right, strokeWidth = r * 0.75f)
+    drawLine(color, left, bottom, strokeWidth = r * 0.75f)
+    drawCircle(color, radius = r, center = right)
+    drawCircle(color, radius = r, center = left)
+    drawCircle(color, radius = r, center = bottom)
   }
 }
 
@@ -271,12 +286,7 @@ fun NavigationScene(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
             modifier = Modifier.size(64.dp),
         ) {
-          Icon(
-              Icons.Filled.Share,
-              contentDescription = if (sharing) "Sharing live" else "Share trip",
-              tint = Color.White,
-              modifier = Modifier.size(28.dp),
-          )
+          ShareIcon(sizeDp = 28.dp, color = Color.White)
         }
       }
     }
