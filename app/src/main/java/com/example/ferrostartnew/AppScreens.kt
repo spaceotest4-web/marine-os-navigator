@@ -79,6 +79,7 @@ fun AppRoot(viewModel: PocNavigationViewModel = NavModule.viewModel) {
   var screen by remember {
     mutableStateOf<AppScreen>(if (MarineApi.hasToken()) AppScreen.Routes else AppScreen.Login)
   }
+  var activeRouteId by remember { mutableStateOf<String?>(null) }
 
   // Pull the central web config once at startup (API base, update info,
   // notices). Best-effort: failures keep the cached/default values.
@@ -132,8 +133,9 @@ fun AppRoot(viewModel: PocNavigationViewModel = NavModule.viewModel) {
   when (screen) {
     AppScreen.Login -> LoginScreen(onLoggedIn = { screen = AppScreen.Routes })
     AppScreen.Routes ->
-        RouteListScreen(
-            onStartNavigation = { route, simulate ->
+        MainTabs(
+            onStartNavigation = { routeId, route, simulate ->
+              activeRouteId = routeId
               viewModel.startNavigationRoute(route, simulate)
               screen = AppScreen.Navigating
             },
@@ -142,7 +144,8 @@ fun AppRoot(viewModel: PocNavigationViewModel = NavModule.viewModel) {
               screen = AppScreen.Login
             },
         )
-    AppScreen.Navigating -> NavigationScene(onExit = { screen = AppScreen.Routes })
+    AppScreen.Navigating ->
+        NavigationScene(routeId = activeRouteId, onExit = { screen = AppScreen.Routes })
   }
 }
 
@@ -324,7 +327,7 @@ private fun StatPill(text: String) {
 
 @Composable
 fun RouteListScreen(
-    onStartNavigation: (Route, Boolean) -> Unit,
+    onStartNavigation: (String, Route, Boolean) -> Unit,
     onLogout: () -> Unit,
 ) {
   var routes by remember { mutableStateOf<List<MarineApi.RouteSummary>?>(null) }
@@ -357,6 +360,7 @@ fun RouteListScreen(
           return@launch
         }
         onStartNavigation(
+            routeId,
             MarineRouteBuilder.build(detail.copy(waypoints = remaining)),
             simulate,
         )

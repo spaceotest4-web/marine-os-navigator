@@ -187,6 +187,69 @@ object MarineApi {
     }
   }
 
+  /** Fetch a public JSON URL (no auth) with the shared client + retry. */
+  fun publicGetJson(url: String): JSONObject {
+    val request = Request.Builder().url(url).build()
+    executeWithRetry(request).use { res ->
+      val body = res.body.string()
+      if (!res.isSuccessful) throw ApiException("Request failed (${res.code})")
+      return JSONObject(body)
+    }
+  }
+
+  data class FuelStation(
+      val name: String,
+      val lat: Double,
+      val lng: Double,
+      val source: String,
+      val prices: Map<String, Double>,
+  )
+
+  /** Fuel docks with prices near a position (Marine OS public fuel feed). */
+  fun fuelStations(lat: Double, lng: Double, spanDeg: Double = 0.6): List<FuelStation> {
+    val json =
+        publicGetJson(
+            "$baseUrl/api/public/fuel?minLat=${lat - spanDeg}&maxLat=${lat + spanDeg}&minLng=${lng - spanDeg}&maxLng=${lng + spanDeg}")
+    val arr = json.optJSONArray("stations") ?: return emptyList()
+    return (0 until arr.length()).mapNotNull { i ->
+      val s = arr.getJSONObject(i)
+      val prices = s.optJSONObject("prices") ?: JSONObject()
+      FuelStation(
+          name = s.optString("name", "Fuel dock"),
+          lat = s.optDouble("lat"),
+          lng = s.optDouble("lng"),
+          source = s.optString("source", ""),
+          prices = prices.keys().asSequence().associateWith { k -> prices.optDouble(k) },
+      )
+    }
+  }
+
+  private fun authedPost(path: String, payload: JSONObject): JSONObject {
+    val token = prefs.getString(KEY_TOKEN, null) ?: throw ApiException("Not signed in")
+    val request =
+        Request.Builder()
+            .url("$baseUrl$path")
+            .header("Authorization", "Bearer $token")
+            .post(payload.toString().toRequestBody(jsonMedia))
+            .build()
+    executeWithRetry(request).use { res ->
+      val body = res.body.string()
+      if (!res.isSuccessful) throw ApiException(errorMessage(body, "Request failed (${res.code})"))
+      return JSONObject(body)
+    }
+  }
+
+  /** Turn on sharing for a route; returns the public link for family. */
+  fun shareRoute(id: String): String {
+    val json = authedPost("/api/app/routes/$id/share", JSONObject())
+    return json.optString("shareUrl").ifBlank { throw ApiException("Could not create the share link") }
+  }
+
+  /** Append a live position to the route's shared track (best-effort). */
+  fun postTrackPoint(id: String, lat: Double, lng: Double) {
+    authedPost("/api/app/routes/$id/track", JSONObject().put("lat", lat).put("lng", lng))
+  }
+
   fun getRoute(id: String): RouteDetail {
     val json = authedGet("/api/app/routes/$id")
     val r = json.getJSONObject("route")
