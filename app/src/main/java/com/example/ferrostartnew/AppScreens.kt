@@ -346,7 +346,7 @@ fun RouteListScreen(
   var loadingRouteId by remember { mutableStateOf<String?>(null) }
   // Real GPS by default - the demo simulator is opt-in for testing ashore.
   var simulate by remember { mutableStateOf(false) }
-  var expandedRouteId by remember { mutableStateOf<String?>(null) }
+  var detailFor by remember { mutableStateOf<MarineApi.RouteSummary?>(null) }
   var detailCache by remember { mutableStateOf(mapOf<String, MarineApi.RouteDetail>()) }
   val scope = rememberCoroutineScope()
   val context = LocalContext.current
@@ -384,23 +384,35 @@ fun RouteListScreen(
     }
   }
 
-  fun toggleWaypoints(routeId: String) {
-    if (expandedRouteId == routeId) {
-      expandedRouteId = null
-      return
-    }
-    expandedRouteId = routeId
-    if (detailCache[routeId] == null) {
+  fun openDetail(r: MarineApi.RouteSummary) {
+    detailFor = r
+    if (detailCache[r.id] == null) {
       scope.launch {
         try {
-          val detail = withContext(Dispatchers.IO) { MarineApi.getRoute(routeId) }
-          detailCache = detailCache + (routeId to detail)
+          val detail = withContext(Dispatchers.IO) { MarineApi.getRoute(r.id) }
+          detailCache = detailCache + (r.id to detail)
         } catch (e: Exception) {
-          error = e.message ?: "Could not load waypoints"
-          expandedRouteId = null
+          error = e.message ?: "Could not load the route"
+          detailFor = null
         }
       }
     }
+  }
+
+  // Detail view replaces the list while open (back returns to the list).
+  detailFor?.let { sel ->
+    RouteDetailScreen(
+        summary = sel,
+        detail = detailCache[sel.id],
+        onStartFrom = { i -> startNav(sel.id, i) },
+        onDeleted = {
+          routes = routes?.filterNot { it.id == sel.id }
+          detailCache = detailCache - sel.id
+          detailFor = null
+        },
+        onBack = { detailFor = null },
+    )
+    return
   }
 
   LaunchedEffect(Unit) {
@@ -647,83 +659,10 @@ fun RouteListScreen(
                           }
                         }
                         TextButton(
-                            onClick = { toggleWaypoints(r.id) },
+                            onClick = { openDetail(r) },
                             modifier = Modifier.height(46.dp),
                         ) {
-                          Text(if (expandedRouteId == r.id) "Hide" else "Waypoints")
-                        }
-                      }
-
-                      // Expanded: every waypoint with "Start here", so a boater
-                      // already mid-route can navigate 5 -> 6 -> 7 instead of
-                      // being pointed back to the start.
-                      if (expandedRouteId == r.id) {
-                        val detail = detailCache[r.id]
-                        if (detail == null) {
-                          Row(
-                              verticalAlignment = Alignment.CenterVertically,
-                              modifier = Modifier.padding(top = 10.dp),
-                          ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Loading waypoints…",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                          }
-                        } else {
-                          Column(modifier = Modifier.padding(top = 8.dp)) {
-                            // Every waypoint, in order - the boater starts
-                            // from whichever point they're actually at.
-                            val display = detail.waypoints.mapIndexed { i, wp -> Pair(i, wp) }
-                            Text(
-                                "Start navigation from any waypoint:",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            display.forEach { (i, wp) ->
-                              val isLast = i == detail.waypoints.lastIndex
-                              Row(
-                                  verticalAlignment = Alignment.CenterVertically,
-                                  modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
-                              ) {
-                                Box(
-                                    modifier =
-                                        Modifier.size(22.dp)
-                                            .background(
-                                                MaterialTheme.colorScheme.surfaceVariant,
-                                                CircleShape,
-                                            ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                  Text(
-                                      "${i + 1}",
-                                      style = MaterialTheme.typography.labelSmall,
-                                      color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                  )
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    wp.name.ifBlank { "Waypoint ${i + 1}" },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                if (!isLast) {
-                                  TextButton(
-                                      onClick = { startNav(r.id, i) },
-                                      enabled = loadingRouteId == null,
-                                  ) {
-                                    Text(
-                                        if (i == 0) "Start" else "Start here",
-                                        style = MaterialTheme.typography.labelMedium,
-                                    )
-                                  }
-                                }
-                              }
-                            }
-                          }
+                          Text("Details")
                         }
                       }
                     }

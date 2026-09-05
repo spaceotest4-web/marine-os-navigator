@@ -239,6 +239,22 @@ object MarineApi {
     }
   }
 
+  /** Delete one of the user's own routes. */
+  fun deleteRoute(id: String) {
+    val token = prefs.getString(KEY_TOKEN, null) ?: throw ApiException("Not signed in")
+    val request =
+        Request.Builder()
+            .url("$baseUrl/api/app/routes/$id")
+            .header("Authorization", "Bearer $token")
+            .delete()
+            .build()
+    executeWithRetry(request).use { res ->
+      if (!res.isSuccessful) {
+        throw ApiException(errorMessage(res.body.string(), "Could not delete the route"))
+      }
+    }
+  }
+
   /** Turn on sharing for a route; returns the public link for family. */
   fun shareRoute(id: String): String {
     val json = authedPost("/api/app/routes/$id/share", JSONObject())
